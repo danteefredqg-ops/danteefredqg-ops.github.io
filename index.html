@@ -73,7 +73,7 @@
     inset: -100px;
     pointer-events: none;
     z-index: 1;
-    opacity: 0.05;
+    opacity: 0.09;
     mix-blend-mode: multiply;
   }
 
@@ -863,35 +863,52 @@
     els.forEach(el => el.classList.add('is-visible'));
   }
 
-  // Paper-grain texture overlay
-  function initGrain() {
+  // Paper-grain texture overlay — redraws constantly for a live film-grain flicker
+  (function () {
     const canvas = document.getElementById('grainCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth + 200;
-    canvas.height = window.innerHeight + 200;
-    const size = 180;
+    const tileSize = 160;
     const tile = document.createElement('canvas');
-    tile.width = size;
-    tile.height = size;
+    tile.width = tileSize;
+    tile.height = tileSize;
     const tctx = tile.getContext('2d');
-    const imgData = tctx.createImageData(size, size);
-    for (let i = 0; i < imgData.data.length; i += 4) {
-      const v = 180 + Math.random() * 75;
-      imgData.data[i] = v;
-      imgData.data[i + 1] = v;
-      imgData.data[i + 2] = v;
-      imgData.data[i + 3] = 255;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function sizeCanvas() {
+      canvas.width = window.innerWidth + 200;
+      canvas.height = window.innerHeight + 200;
     }
-    tctx.putImageData(imgData, 0, 0);
-    const pattern = ctx.createPattern(tile, 'repeat');
-    ctx.fillStyle = pattern;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-  window.addEventListener('load', initGrain);
-  let grainT;
-  window.addEventListener('resize', () => {
-    clearTimeout(grainT);
-    grainT = setTimeout(initGrain, 200);
-  });
+
+    function drawFrame() {
+      const imgData = tctx.createImageData(tileSize, tileSize);
+      for (let i = 0; i < imgData.data.length; i += 4) {
+        const v = 180 + Math.random() * 75;
+        imgData.data[i] = v;
+        imgData.data[i + 1] = v;
+        imgData.data[i + 2] = v;
+        imgData.data[i + 3] = 255;
+      }
+      tctx.putImageData(imgData, 0, 0);
+      const pattern = ctx.createPattern(tile, 'repeat');
+      ctx.fillStyle = pattern;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    sizeCanvas();
+    drawFrame();
+
+    let resizeT;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeT);
+      resizeT = setTimeout(() => {
+        sizeCanvas();
+        drawFrame();
+      }, 200);
+    });
+
+    if (!reduceMotion) {
+      setInterval(drawFrame, 90);
+    }
+  })();
 </script>
